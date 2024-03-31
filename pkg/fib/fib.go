@@ -18,34 +18,34 @@ const (
 	instrumentationVersion = "0.1.0"
 )
 
-type Memoizer func(int, int)
+type Memoizer func(uint, uint)
 
 // Memo returns a memoized result for a fibonacci number, a bool that is true if a result was returned, and a func to memoize a new result.
-type Memo func(int) (int, bool, Memoizer)
+type Memo func(uint) (uint, bool, Memoizer)
 
 // WithMemoization returns a Memo func that allows fib.Recurse to memoize results. Not safe for concurrency.
 func WithSimpleMemoization() Memo {
-	results := make(map[int]int)
-	return func(i int) (int, bool, Memoizer) {
+	results := make(map[uint]uint)
+	return func(i uint) (uint, bool, Memoizer) {
 		v, ok := results[i]
-		return v, ok, func(i, result int) {
+		return v, ok, func(i, result uint) {
 			results[i] = result
 		}
 	}
 }
 
 // Iterate uses iteration to compute Fibonacci numbers. Use this approach on leetcode and interviews.
-func Iterate(ctx context.Context, num int) int {
+func Iterate(ctx context.Context, num uint) uint {
 	if num <= 1 {
 		return num
 	}
-	var n_minus_two, n_minus_one, n int
+	var n_minus_two, n_minus_one, n uint
 	n, n_minus_one = 1, 1
 
-	for i := 2; i < num; i++ {
+	for i := uint(2); i < num; i++ {
 		select {
 		case <-ctx.Done():
-			return -1
+			return 0
 		default:
 			n_minus_two, n_minus_one = n_minus_one, n
 			n = n_minus_two + n_minus_one
@@ -56,24 +56,24 @@ func Iterate(ctx context.Context, num int) int {
 }
 
 // Recuse uses recursion to compute Fibonnaci numbers. Pass in an optional Memo func for extra performance/fun.
-func Recurse(ctx context.Context, num int, memos ...Memo) (result int) {
+func Recurse(ctx context.Context, num uint, memos ...Memo) (result uint) {
 	tracer := otel.Tracer(instrumentationName,
 		trace.WithInstrumentationVersion(instrumentationVersion),
 		trace.WithSchemaURL(semconv.SchemaURL),
 	)
 	cctx, sp := tracer.Start(ctx,
 		fmt.Sprintf("Recursive Fibonacci(%d)", num),
-		trace.WithAttributes(attribute.Int("n", num)))
+		trace.WithAttributes(attribute.Int("n", int(num))))
 	defer sp.End()
 
 	select {
 	case <-cctx.Done():
 		sp.SetAttributes(attribute.Bool("canceled", true))
-		return -1
+		return 0
 	default:
 	}
 
-	defer func() { sp.SetAttributes(attribute.Int("result", result)) }()
+	defer func() { sp.SetAttributes(attribute.Int("result", int(result))) }()
 
 	for _, memo := range memos {
 		r, ok, memoize := memo(num)
@@ -94,8 +94,8 @@ func Recurse(ctx context.Context, num int, memos ...Memo) (result int) {
 }
 
 // Channel uses goroutines and channles to compute Fibonacci numbers.
-func Channel(ctx context.Context, num int) chan int {
-	ch := make(chan int)
+func Channel(ctx context.Context, num uint) chan uint {
+	ch := make(chan uint)
 
 	go func() {
 		tracer := otel.Tracer(instrumentationName,
@@ -104,7 +104,7 @@ func Channel(ctx context.Context, num int) chan int {
 		)
 		cctx, sp := tracer.Start(ctx,
 			fmt.Sprintf("Channel Fibonacci(%d)", num),
-			trace.WithAttributes(attribute.Int("n", num)))
+			trace.WithAttributes(attribute.Int("n", int(num))))
 		defer sp.End()
 
 		select {
@@ -124,7 +124,7 @@ func Channel(ctx context.Context, num int) chan int {
 			result = <-a + <-b
 		}
 
-		sp.SetAttributes(attribute.Int("result", result))
+		sp.SetAttributes(attribute.Int("result", int(result)))
 
 		ch <- result
 	}()

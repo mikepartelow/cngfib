@@ -68,7 +68,7 @@ func main() {
 	ctx, span := tracer.Start(ctx, "main")
 	defer span.End()
 
-	var n int
+	var n uint
 
 	// n = <-fib.Channel(ctx, 10)
 	// fmt.Println(n)
@@ -76,7 +76,7 @@ func main() {
 	n = fib.Recurse(ctx, 10) //, fib.WithSimpleMemoization())
 	fmt.Println(n)
 
-	span.SetAttributes(attribute.Int("n", n))
+	span.SetAttributes(attribute.Int("n", int(n)))
 }
 
 func check[T any](thing T, err error) T {
